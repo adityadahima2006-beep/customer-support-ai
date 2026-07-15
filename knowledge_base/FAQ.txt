@@ -1,0 +1,10 @@
+Frequently Asked Questions
+
+Q: How do I contact support?
+A: support@company.com
+
+Q: What are your working hours?
+A: Monday to Friday, 9 AM to 6 PM.
+
+Q: How do I reset my password?
+A: Click on Forgot Password on the login page.
