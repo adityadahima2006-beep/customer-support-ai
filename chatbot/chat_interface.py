@@ -4,7 +4,7 @@ from database.db import save_chat
 from agent.intent_agent import detect_intent
 from ai_agents.router import route_query
 from ai_agents.llm_agent import generate_response
-from knowledge_base.vector_store import search
+# from knowledge_base.vector_store import search
 
 from memory.conversation_memory import (
     initialize_memory,
@@ -84,20 +84,7 @@ def show_chat():
             # ------------------------
             # Knowledge Base Search
             # ------------------------
-            try:
-
-                results = search(user_input)
-
-                if results:
-                    kb_context = results[0]["content"]
-                else:
-                    kb_context = "No relevant information found in the knowledge base."
-
-            except Exception as e:
-
-                st.error(f"Knowledge Base Error:\n{e}")
-
-                kb_context = "Knowledge base unavailable."
+            kb_context = "Knowledge base temporarily disabled."
 
             # ------------------------
             # Build Context
