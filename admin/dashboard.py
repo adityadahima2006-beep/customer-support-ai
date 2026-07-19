@@ -1,190 +1,184 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 
-from database.db import (
-    get_total_users,
-    get_total_chats,
-    get_sentiment_counts,
-    get_recent_chats,
-    search_chats,
-    get_all_chats
+# -------------------------------
+# Page Configuration
+# -------------------------------
+st.set_page_config(
+    page_title="Customer Support AI",
+    page_icon="🤖",
+    layout="wide"
 )
 
+# -------------------------------
+# Import Project Modules
+# -------------------------------
+try:
+    from database.db import create_tables
 
-def show_dashboard():
-
-    st.header("📊 Customer Support Analytics Dashboard")
-
-    # ==========================
-    # Analytics
-    # ==========================
-
-    total_users = get_total_users()
-    total_chats = get_total_chats()
-
-    positive, neutral, negative = get_sentiment_counts()
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    col1.metric("👥 Users", total_users)
-    col2.metric("💬 Chats", total_chats)
-    col3.metric("😊 Positive", positive)
-    col4.metric("😐 Neutral", neutral)
-    col5.metric("😔 Negative", negative)
-
-    st.markdown("---")
-
-    # ==========================
-    # Search
-    # ==========================
-
-    st.subheader("🔍 Search Conversations")
-
-    keyword = st.text_input(
-        "Search by Username or Message"
+    from auth.auth_signup import register_user
+    from auth.auth_login import login_user
+    from auth.auth_session import (
+        initialize_session,
+        login,
+        logout
     )
 
-    if keyword.strip():
+    from chatbot.chat_interface import show_chat
 
-        chats = search_chats(keyword)
+    from admin.dashboard import show_dashboard
 
-        st.success(f"Found {len(chats)} result(s).")
+except Exception as e:
+    st.error("Application import error:")
+    st.exception(e)
+    st.stop()
 
-    else:
 
-        chats = get_recent_chats()
+# -------------------------------
+# Database Initialization
+# -------------------------------
+try:
+    create_tables()
 
-    st.markdown("---")
+except Exception as e:
+    st.error("Database initialization failed:")
+    st.exception(e)
+    st.stop()
 
-    # ==========================
-    # Charts
-    # ==========================
 
-    chart_data = pd.DataFrame({
-        "Sentiment": [
-            "Positive",
-            "Neutral",
-            "Negative"
-        ],
-        "Count": [
-            positive,
-            neutral,
-            negative
-        ]
-    })
+# -------------------------------
+# Session Initialization
+# -------------------------------
+initialize_session()
 
-    c1, c2 = st.columns(2)
 
-    with c1:
+# -------------------------------
+# Sidebar Navigation
+# -------------------------------
+def sidebar_menu():
 
-        st.subheader("📊 Sentiment Bar Chart")
+    st.sidebar.title("🤖 Customer Support AI")
 
-        fig = px.bar(
-            chart_data,
-            x="Sentiment",
-            y="Count",
-            text="Count"
+    if st.session_state.get("logged_in"):
+
+        st.sidebar.success(
+            f"Welcome, {st.session_state.get('username','User')}"
         )
 
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
-    with c2:
-
-        st.subheader("🥧 Sentiment Pie Chart")
-
-        fig = px.pie(
-            chart_data,
-            names="Sentiment",
-            values="Count"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
-    st.markdown("---")
-
-    # ==========================
-    # Conversation Table
-    # ==========================
-
-    st.subheader("📝 Conversation Table")
-
-    if chats:
-
-        table = pd.DataFrame(
-            chats,
-            columns=[
-                "Username",
-                "User Message",
-                "Bot Response",
-                "Timestamp"
+        choice = st.sidebar.radio(
+            "Navigation",
+            [
+                "Chat Assistant",
+                "Admin Dashboard",
+                "Logout"
             ]
-        )
-
-        st.dataframe(
-            table,
-            use_container_width=True
         )
 
     else:
 
-        st.warning("No conversations found.")
-
-    st.markdown("---")
-
-    # ==========================
-    # Export CSV
-    # ==========================
-
-    st.subheader("📤 Export Chat History")
-
-    all_chats = get_all_chats()
-
-    if all_chats:
-
-        export_df = pd.DataFrame(
-            all_chats,
-            columns=[
-                "Username",
-                "User Message",
-                "Bot Response",
-                "Timestamp"
+        choice = st.sidebar.radio(
+            "Navigation",
+            [
+                "Login",
+                "Register"
             ]
         )
 
-        csv = export_df.to_csv(
-            index=False
-        ).encode("utf-8")
+    # -------------------------------
+    # Developer Name
+    # -------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(
+        "<div style='text-align:center; color:gray;'><b>Developed by Aditya Kumar Dahima</b></div>",
+        unsafe_allow_html=True
+    )
 
-        st.download_button(
-            label="📄 Download CSV",
-            data=csv,
-            file_name="chat_history.csv",
-            mime="text/csv"
+    return choice
+
+
+# -------------------------------
+# Main Application
+# -------------------------------
+def main():
+
+    choice = sidebar_menu()
+
+    # ---------------------------
+    # Register
+    # ---------------------------
+    if choice == "Register":
+
+        st.title("📝 Create Account")
+
+        register_user()
+
+    # ---------------------------
+    # Login
+    # ---------------------------
+    elif choice == "Login":
+
+        st.title("🔐 Login")
+
+        username, password = login_user()
+
+        if username:
+
+            login(username)
+
+            st.success(
+                "Login successful!"
+            )
+
+            st.rerun()
+
+
+    # ---------------------------
+    # Chat
+    # ---------------------------
+    elif choice == "Chat Assistant":
+
+        if st.session_state.get("logged_in"):
+
+            show_chat()
+
+        else:
+
+            st.warning(
+                "Please login first."
+            )
+
+
+    # ---------------------------
+    # Admin Dashboard
+    # ---------------------------
+    elif choice == "Admin Dashboard":
+
+        if st.session_state.get("logged_in"):
+
+            show_dashboard()
+
+        else:
+
+            st.warning(
+                "Please login first."
+            )
+
+
+    # ---------------------------
+    # Logout
+    # ---------------------------
+    elif choice == "Logout":
+
+        logout()
+
+        st.success(
+            "Logged out successfully"
         )
 
-    st.markdown("---")
+        st.rerun()
 
-    # ==========================
-    # Conversation Details
-    # ==========================
 
-    st.subheader("📜 Conversation Details")
-
-    for username, user_msg, bot_msg, timestamp in chats:
-
-        with st.expander(
-            f"👤 {username} | {timestamp}"
-        ):
-
-            st.write("### 👤 User")
-            st.write(user_msg)
-
-            st.write("### 🤖 Assistant")
-            st.write(bot_msg)
+# -------------------------------
+# Run App
+# -------------------------------
+if __name__ == "__main__":
+    main()

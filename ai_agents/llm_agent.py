@@ -1,11 +1,15 @@
 import os
 from google import genai
-from dotenv import load_dotenv
 
-# -------------------------------
-# Load Environment Variables
-# -------------------------------
-load_dotenv()
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+client = None
+
+if API_KEY:
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception:
+        client = None
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
