@@ -1,26 +1,58 @@
 import json
 import os
+import streamlit as st
 
 USER_DB = "database/users.json"
 
 
-def register_user(username, password):
+def register_user():
+    """
+    Display registration form and create a new user.
+    """
 
-    if not username or not password:
-        return False, "Username and Password cannot be empty."
+    username = st.text_input("Choose Username")
 
-    if os.path.exists(USER_DB):
-        with open(USER_DB, "r") as file:
-            users = json.load(file)
-    else:
-        users = {}
+    password = st.text_input(
+        "Choose Password",
+        type="password"
+    )
 
-    if username in users:
-        return False, "Username already exists."
+    confirm_password = st.text_input(
+        "Confirm Password",
+        type="password"
+    )
 
-    users[username] = password
+    if st.button("Register"):
 
-    with open(USER_DB, "w") as file:
-        json.dump(users, file, indent=4)
+        if not username or not password or not confirm_password:
 
-    return True, "Registration Successful!"
+            st.error("Please fill in all fields.")
+            return
+
+        if password != confirm_password:
+
+            st.error("Passwords do not match.")
+            return
+
+        if os.path.exists(USER_DB):
+
+            try:
+                with open(USER_DB, "r") as file:
+                    users = json.load(file)
+            except Exception:
+                users = {}
+
+        else:
+            users = {}
+
+        if username in users:
+
+            st.error("Username already exists.")
+            return
+
+        users[username] = password
+
+        with open(USER_DB, "w") as file:
+            json.dump(users, file, indent=4)
+
+        st.success("Registration Successful! Please login.")

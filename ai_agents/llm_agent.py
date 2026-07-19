@@ -2,24 +2,43 @@ import os
 from google import genai
 from dotenv import load_dotenv
 
-# Load environment variables
+# -------------------------------
+# Load Environment Variables
+# -------------------------------
 load_dotenv()
 
-# Create Gemini client
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+client = None
+
+if API_KEY:
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception:
+        client = None
 
 
 def generate_response(user_message, context):
     """
-    Generate AI response using Gemini.
+    Generate AI response using Google Gemini.
     """
 
+    # -------------------------------
+    # API Key Check
+    # -------------------------------
+    if client is None:
+        return (
+            "⚠ Gemini API is not configured.\n\n"
+            "Please check your GEMINI_API_KEY in the .env file."
+        )
+
+    # -------------------------------
+    # Prompt
+    # -------------------------------
     prompt = f"""
 You are an intelligent Customer Support AI Assistant.
 
-Answer the user's question ONLY using the provided context.
+Your job is to answer ONLY from the provided context.
 
 --------------------------------------------------
 CONTEXT
@@ -31,12 +50,12 @@ CUSTOMER QUESTION
 --------------------------------------------------
 {user_message}
 
-Rules:
-1. Be polite.
-2. Be professional.
-3. Give step-by-step guidance if needed.
-4. Don't invent information.
-5. If the answer isn't available, politely recommend escalating to a human support agent.
+Instructions:
+- Be polite.
+- Be professional.
+- Give clear step-by-step guidance.
+- Never invent information.
+- If the answer is unavailable in the context, politely recommend contacting a human support agent.
 """
 
     try:
@@ -46,8 +65,17 @@ Rules:
             contents=prompt
         )
 
-        return response.text
+        if response is None:
+            return "⚠ Gemini returned an empty response."
+
+        if hasattr(response, "text") and response.text:
+            return response.text
+
+        return "⚠ Gemini generated no text."
 
     except Exception as e:
 
-        return f"⚠ Gemini Error:\n\n{str(e)}"
+        return (
+            "⚠ Gemini API Error\n\n"
+            f"{str(e)}"
+        )

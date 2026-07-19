@@ -34,9 +34,8 @@ def show_chat():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display previous chat
+    # Display previous messages
     for message in st.session_state.messages:
-
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
@@ -69,16 +68,22 @@ def show_chat():
 
         else:
 
-            # Detect intent
+            # ------------------------
+            # Detect Intent
+            # ------------------------
             intents = detect_intent(user_input)
 
-            # Route query
+            # ------------------------
+            # Route Query
+            # ------------------------
             agent_response = route_query(
                 intents,
                 user_input
             )
 
-            # Search Knowledge Base
+            # ------------------------
+            # Knowledge Base Search
+            # ------------------------
             try:
 
                 results = search(user_input)
@@ -88,11 +93,15 @@ def show_chat():
                 else:
                     kb_context = "No relevant information found in the knowledge base."
 
-            except Exception:
+            except Exception as e:
+
+                st.error(f"Knowledge Base Error:\n{e}")
 
                 kb_context = "Knowledge base unavailable."
 
-            # Combine Context
+            # ------------------------
+            # Build Context
+            # ------------------------
             context = f"""
 Agent Response:
 {agent_response}
@@ -101,22 +110,30 @@ Knowledge Base:
 {kb_context}
 """
 
-            # Generate Gemini Response
-            try:
+            # ------------------------
+            # Gemini Response
+            # ------------------------
+            with st.spinner("🤖 Generating response..."):
 
-                ai_response = generate_response(
-                    user_input,
-                    context
-                )
+                try:
 
-            except Exception as e:
+                    ai_response = generate_response(
+                        user_input,
+                        context
+                    )
 
-                ai_response = (
-                    f"{agent_response}\n\n"
-                    f"Gemini Error:\n{str(e)}"
-                )
+                except Exception as e:
 
+                    st.error(f"Gemini Error:\n{e}")
+
+                    ai_response = (
+                        f"{agent_response}\n\n"
+                        f"Gemini Error:\n{str(e)}"
+                    )
+
+        # ------------------------
         # Sentiment Handling
+        # ------------------------
         if sentiment == "Negative":
 
             ai_response = (
@@ -131,6 +148,9 @@ Knowledge Base:
                 + ai_response
             )
 
+        # ------------------------
+        # Save Assistant Message
+        # ------------------------
         st.session_state.messages.append(
             {
                 "role": "assistant",
@@ -140,11 +160,17 @@ Knowledge Base:
 
         add_message("assistant", ai_response)
 
+        # ------------------------
+        # Save Chat History
+        # ------------------------
         save_chat(
-            st.session_state.username,
+            st.session_state.get("username", "Guest"),
             user_input,
             ai_response
         )
 
+        # ------------------------
+        # Display Assistant Response
+        # ------------------------
         with st.chat_message("assistant"):
             st.write(ai_response)

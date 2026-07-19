@@ -4,15 +4,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+client = None
+
+if API_KEY:
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception:
+        client = None
 
 
 def generate_response(user_message, context):
-    """
-    Generate AI response using Gemini.
-    """
+
+    if client is None:
+        return (
+            "⚠ Gemini API is not configured.\n\n"
+            "Please check your GEMINI_API_KEY."
+        )
 
     prompt = f"""
 You are an intelligent Customer Support AI Assistant.
@@ -34,12 +43,17 @@ Rules:
 """
 
     try:
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
 
-        return response.text
+        if response and hasattr(response, "text"):
+            return response.text
+
+        return "⚠ Gemini generated an empty response."
 
     except Exception as e:
-        return f"⚠ Gemini Error: {str(e)}"
+
+        return f"⚠ Gemini Error:\n\n{str(e)}"
