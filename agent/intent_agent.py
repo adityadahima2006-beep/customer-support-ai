@@ -5,19 +5,19 @@ def detect_intent(message):
     message = message.lower()
 
     billing_keywords = [
-        "bill", "payment", "refund", "invoice", "price",
-        "charge", "money", "subscription", "plan"
+        "bill", "billing", "payment", "refund", "invoice",
+        "price", "charge", "money", "subscription", "plan"
     ]
 
     technical_keywords = [
-        "error", "bug", "issue", "login", "password",
-        "otp", "failed", "problem", "not working",
-        "crash", "technical"
+        "error", "issue", "bug", "login", "password",
+        "otp", "failed", "problem", "technical",
+        "not working", "crash"
     ]
 
     complaint_keywords = [
-        "complaint", "bad", "poor", "angry",
-        "worst", "cancel", "stolen", "lost"
+        "complaint", "bad", "poor", "worst",
+        "angry", "cancel", "lost", "stolen"
     ]
 
     product_keywords = [
