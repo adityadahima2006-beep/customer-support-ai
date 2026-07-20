@@ -1,97 +1,180 @@
-import streamlit as st
+import os
 import sqlite3
 import pandas as pd
-import os
-
+import streamlit as st
+import plotly.express as px
 
 DB_PATH = "database/chat_history.db"
 
 
 def show_dashboard():
-    st.title("📊 Admin Dashboard")
+    st.title("📊 Customer Support AI Dashboard")
 
+    # Check database
     if not os.path.exists(DB_PATH):
-        st.warning("Database not found.")
+        st.error("Database not found!")
         return
 
     try:
         conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql_query("SELECT * FROM chat_history", conn)
+        conn.close()
+    except Exception as e:
+        st.error(f"Database Error: {e}")
+        return
 
-        # -----------------------------
-        # Load Chat History
-        # -----------------------------
-        try:
-            df = pd.read_sql_query(
-                "SELECT * FROM chat_history",
-                conn
-            )
-        except Exception:
-            st.info("No chat history found.")
-            conn.close()
-            return
+    if df.empty:
+        st.warning("No chat history available.")
+        return
 
-        if df.empty:
-            st.info("No chat records available.")
-            conn.close()
-            return
-
-        # -----------------------------
-        # Metrics
-        # -----------------------------
-        st.subheader("📈 Dashboard Metrics")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Total Chats", len(df))
-
-        with col2:
-            if "username" in df.columns:
-                st.metric("Users", df["username"].nunique())
-            else:
-                st.metric("Users", 0)
-
-        with col3:
-            if "intent" in df.columns:
-                st.metric("Intents", df["intent"].nunique())
-            else:
-                st.metric("Intents", 0)
-
-        st.divider()
-
-        # -----------------------------
-        # Chat Records
-        # -----------------------------
-        st.subheader("💬 Chat History")
-
-        st.dataframe(
-            df,
-            use_container_width=True
+    # Create timestamp if missing
+    if "timestamp" not in df.columns:
+        df["timestamp"] = pd.date_range(
+            end=pd.Timestamp.now(),
+            periods=len(df),
+            freq="min"
         )
 
-        # -----------------------------
-        # Intent Distribution
-        # -----------------------------
-        if "intent" in df.columns:
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-            st.subheader("📊 Intent Distribution")
+    # Message length
+    df["Message Length"] = (
+        df["user_message"]
+        .astype(str)
+        .str.len()
+    )
 
-            intent_counts = df["intent"].value_counts()
+    # ---------------- KPI ----------------
 
-            st.bar_chart(intent_counts)
+    st.subheader("📈 Dashboard Metrics")
 
-        # -----------------------------
-        # Sentiment Distribution
-        # -----------------------------
-        if "sentiment" in df.columns:
+    col1, col2, col3, col4 = st.columns(4)
 
-            st.subheader("😊 Sentiment Distribution")
+    col1.metric("💬 Total Chats", len(df))
+    col2.metric("👤 Users", df["username"].nunique())
+    col3.metric("📝 Messages", len(df))
+    col4.metric(
+        "📏 Avg Length",
+        int(df["Message Length"].mean())
+    )
 
-            sentiment_counts = df["sentiment"].value_counts()
+    st.divider()
 
-            st.bar_chart(sentiment_counts)
+    # ---------------- Charts Row 1 ----------------
 
-        conn.close()
+    c1, c2 = st.columns(2)
 
-    except Exception as e:
-        st.error(f"Dashboard Error: {e}")
+    with c1:
+        st.subheader("👤 Chats Per User")
+
+        user_counts = (
+            df["username"]
+            .value_counts()
+            .reset_index()
+        )
+
+        user_counts.columns = ["Username", "Chats"]
+
+        fig = px.bar(
+            user_counts,
+            x="Username",
+            y="Chats",
+            text="Chats",
+            color="Chats"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with c2:
+        st.subheader("🥧 User Distribution")
+
+        fig = px.pie(
+            user_counts,
+            names="Username",
+            values="Chats",
+            hole=0.45
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ---------------- Line Chart ----------------
+
+    st.subheader("📈 Message Length")
+
+    fig = px.line(
+        df,
+        x=df.index,
+        y="Message Length",
+        markers=True
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ---------------- Timeline ----------------
+
+    st.subheader("📅 Chat Timeline")
+
+    timeline = (
+        df.groupby(df["timestamp"].dt.date)
+        .size()
+        .reset_index(name="Chats")
+    )
+
+    timeline.columns = ["Date", "Chats"]
+
+    fig = px.area(
+        timeline,
+        x="Date",
+        y="Chats"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ---------------- Histogram ----------------
+
+    st.subheader("📊 Message Length Distribution")
+
+    fig = px.histogram(
+        df,
+        x="Message Length",
+        nbins=15
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ---------------- Search ----------------
+
+    st.subheader("🔍 Search Chats")
+
+    search = st.text_input("Search by Username or Message")
+
+    if search:
+        filtered = df[
+            df["username"].str.contains(search, case=False, na=False)
+            |
+            df["user_message"].str.contains(search, case=False, na=False)
+        ]
+        st.dataframe(filtered, use_container_width=True)
+    else:
+        st.dataframe(df, use_container_width=True)
+
+    st.divider()
+
+    # ---------------- Download ----------------
+
+    csv = df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        "⬇ Download Chat History",
+        data=csv,
+        file_name="chat_history.csv",
+        mime="text/csv"
+    )
